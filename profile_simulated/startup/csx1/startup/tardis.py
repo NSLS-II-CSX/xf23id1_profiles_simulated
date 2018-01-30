@@ -1,13 +1,19 @@
+# Modified in order to create a safe simulation environment 2018/01/30
+
+from ophyd.sim import SynAxis
 from ophyd import Component as Cpt
 from ophyd import (PseudoSingle, EpicsMotor, SoftPositioner, Signal)
 from hkl.diffract import E6C  #this works for mu=0
+#from hkl.diffract import E6C  #this works for any mu
 from ophyd.pseudopos import (pseudo_position_argument, real_position_argument)
 
 # Add MuR and MuT to bluesky list of motors and detectors.
-muR = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuR}Mtr', name='muR')
+#muR = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuR}Mtr', name='muR')
+# use the line below if very paranoid
+#muR = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuR}Mtr', name='muR')
 # use the line below if very paranoid
 # muR = EpicsSignal('XF:23ID1-ES{Dif-Ax:MuR}Mtr.RBV', name='muR')
-muT = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuT}Mtr', name='muT')
+#muT = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuT}Mtr', name='muT')
 
 
 # TODO: fix upstream!!
@@ -22,13 +28,20 @@ class Tardis(E6C):  #this works for mu=0
     k = Cpt(PseudoSingle, '')
     l = Cpt(PseudoSingle, '')
 
-    theta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Th}Mtr')
+    #theta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Th}Mtr')
+    #theta = Cpt(SynAxis, name = 'theta')
+    theta = Cpt(NullMotor)
     mu = Cpt(NullMotor)
+    #mu = Cpt(SynAxis, name = 'mu')
 
     chi =   Cpt(NullMotor)
+    #chi =   Cpt(SynAxis, name = 'chi')
     phi =   Cpt(NullMotor)
-    delta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Del}Mtr')
-    gamma = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Gam}Mtr')
+    #phi =   Cpt(SynAxis, name = 'phi')
+    #delta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Del}Mtr')
+    delta = Cpt(NullMotor)
+    #gamma = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Gam}Mtr')
+    gamma = Cpt(NullMotor)
 
 
     def __init__(self, *args, **kwargs):
@@ -36,15 +49,15 @@ class Tardis(E6C):  #this works for mu=0
 
         # prime the 3 null-motors with initial values
         # otherwise, position == None --> describe, etc gets borked
-        self.chi.move(0.0)
-        self.phi.move(0.0)
+        #self.chi.move(0.0)
+        #self.phi.move(0.0)
 
         # we have to use a motor for omega to keep hkl happy,
         # but want to keep omega as read-only and to follow muR
-        def muR_updater(value, **kwargs):
-            self.mu.move(value)
-
-        muR.subscribe(muR_updater)
+        #def muR_updater(value, **kwargs):
+        #    self.mu.move(value)
+        #
+        #muR.subscribe(muR_updater)
 
     @pseudo_position_argument
     def set(self, position):
@@ -57,11 +70,13 @@ class Tardis(E6C):  #this works for mu=0
 tardis = Tardis('', name='tardis')
 
 # re-map Tardis' axis names onto what an E6C expects
+#name_map = {'mu': 'theta', 'omega': 'mu', 'chi': 'chi', 'phi': 'phi', 'gamma': 'delta', 'delta': 'gamma'}
 name_map = {'mu': 'theta', 'omega': 'mu', 'chi': 'chi', 'phi': 'phi', 'gamma': 'delta', 'delta': 'gamma'}
 
 
 tardis.calc.physical_axis_names = name_map
 
+#tardis.calc.engine.mode = 'lifting_detector_mu'  #THis is for E6C, it exists for petra3_09..., but not loaded
 tardis.calc.engine.mode = 'lifting_detector_mu'  #THis is for E6C, it exists for petra3_09..., but not loaded
 
 # from this point, we can configure the Tardis instance
@@ -84,16 +99,19 @@ tardis.calc['theta'].value = 0
 tardis.calc['theta'].fit = True
 
 # we don't have it. Fix to 0
+#tardis.calc['phi'].limits = (0, 0)
 tardis.calc['phi'].limits = (0, 0)
 tardis.calc['phi'].value = 0
 tardis.calc['phi'].fit = False
 
 # we don't have it. Fix to 0
+#tardis.calc['chi'].limits = (0, 0)
 tardis.calc['chi'].limits = (0, 0)
 tardis.calc['chi'].value = 0
 tardis.calc['chi'].fit = False
 
 # we don't have it!! Fix to 0
+#tardis.calc['mu'].limits = (0, 0)
 tardis.calc['mu'].limits = (0, 0)
 tardis.calc['mu'].value = 0#tardis.omega.position.real
 tardis.calc['mu'].fit = False
