@@ -6,6 +6,9 @@ gi.require_version("Hkl", "5.0")
 
 from csx1.startup import *
 
+
+
+
 #from IPython import get_ipython
 #import nslsii
 #

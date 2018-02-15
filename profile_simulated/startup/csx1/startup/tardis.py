@@ -30,18 +30,24 @@ class Tardis(E6C):  #this works for mu=0
 
     #theta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Th}Mtr')
     #theta = Cpt(SynAxis, name = 'theta')
-    theta = Cpt(NullMotor)
-    mu = Cpt(NullMotor)
+    #theta = Cpt(NullMotor, name='theta')
+    theta = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:4}Mtr')
+    #mu = Cpt(NullMotor, name='mu')
+    mu = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:5}Mtr')
     #mu = Cpt(SynAxis, name = 'mu')
 
-    chi =   Cpt(NullMotor)
+    #chi =   Cpt(NullMotor, name='chi')
+    chi = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:3}Mtr')
     #chi =   Cpt(SynAxis, name = 'chi')
-    phi =   Cpt(NullMotor)
+    #phi =   Cpt(NullMotor, name='phi')
+    phi = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:2}Mtr')
     #phi =   Cpt(SynAxis, name = 'phi')
     #delta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Del}Mtr')
-    delta = Cpt(NullMotor)
+    #delta = Cpt(NullMotor, name='delta')
+    delta = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:1}Mtr')
     #gamma = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Gam}Mtr')
-    gamma = Cpt(NullMotor)
+    #gamma = Cpt(NullMotor, name='gamma')
+    gamma = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:6}Mtr')
 
 
     def __init__(self, *args, **kwargs):
