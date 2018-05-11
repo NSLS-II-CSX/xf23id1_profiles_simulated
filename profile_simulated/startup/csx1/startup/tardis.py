@@ -1,19 +1,14 @@
-# Modified in order to create a safe simulation environment 2018/01/30
-
-from ophyd.sim import SynAxis
 from ophyd import Component as Cpt
 from ophyd import (PseudoSingle, EpicsMotor, SoftPositioner, Signal)
-from hkl.diffract import E6C  #this works for mu=0
-#from hkl.diffract import E6C  #this works for any mu
+#from hkl.diffract import E6C  #this works for mu=0
+from hkl.diffract import Petra3_p09_eh2
 from ophyd.pseudopos import (pseudo_position_argument, real_position_argument)
 
 # Add MuR and MuT to bluesky list of motors and detectors.
-#muR = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuR}Mtr', name='muR')
-# use the line below if very paranoid
-#muR = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuR}Mtr', name='muR')
+muR = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuR}Mtr', name='muR')
 # use the line below if very paranoid
 # muR = EpicsSignal('XF:23ID1-ES{Dif-Ax:MuR}Mtr.RBV', name='muR')
-#muT = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuT}Mtr', name='muT')
+muT = EpicsMotor('XF:23ID1-ES{Dif-Ax:MuT}Mtr', name='muT')
 
 
 # TODO: fix upstream!!
@@ -23,31 +18,17 @@ class NullMotor(SoftPositioner):
         return True
 
 
-class Tardis(E6C):  #this works for mu=0
+class Tardis(Petra3_p09_eh2):
     h = Cpt(PseudoSingle, '')
     k = Cpt(PseudoSingle, '')
     l = Cpt(PseudoSingle, '')
 
-    #theta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Th}Mtr')
-    #theta = Cpt(SynAxis, name = 'theta')
-    #theta = Cpt(NullMotor, name='theta')
-    theta = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:4}Mtr')
-    #mu = Cpt(NullMotor, name='mu')
-    mu = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:5}Mtr')
-    #mu = Cpt(SynAxis, name = 'mu')
-
-    #chi =   Cpt(NullMotor, name='chi')
-    chi = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:3}Mtr')
-    #chi =   Cpt(SynAxis, name = 'chi')
-    #phi =   Cpt(NullMotor, name='phi')
-    phi = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:2}Mtr')
-    #phi =   Cpt(SynAxis, name = 'phi')
-    #delta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Del}Mtr')
-    #delta = Cpt(NullMotor, name='delta')
-    delta = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:1}Mtr')
-    #gamma = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Gam}Mtr')
-    #gamma = Cpt(NullMotor, name='gamma')
-    gamma = Cpt(EpicsMotor, 'XF:23ID1-ES{Tst-Ax:6}Mtr')
+    theta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Th}Mtr')
+    mu =    Cpt(NullMotor)
+    chi =   Cpt(NullMotor)
+    phi =   Cpt(NullMotor)
+    delta = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Del}Mtr')
+    gamma = Cpt(EpicsMotor, 'XF:23ID1-ES{Dif-Ax:Gam}Mtr')
 
 
     def __init__(self, *args, **kwargs):
@@ -55,11 +36,11 @@ class Tardis(E6C):  #this works for mu=0
 
         # prime the 3 null-motors with initial values
         # otherwise, position == None --> describe, etc gets borked
-        #self.chi.move(0.0)
-        #self.phi.move(0.0)
+        self.chi.move(0.0)
+        self.phi.move(0.0)
+        self.mu.move(0.0)
 
-        # we have to use a motor for omega to keep hkl happy,
-        # but want to keep omega as read-only and to follow muR
+        ## This part should address the mu motor(s) problem..
         #def muR_updater(value, **kwargs):
         #    self.mu.move(value)
         #
@@ -69,84 +50,78 @@ class Tardis(E6C):  #this works for mu=0
     def set(self, position):
         return super().set([float(_) for _ in position])
 
-# FIXME: hack to get around what should have been done at init of tardis_calc instance
-# tardis_calc._lock_engine = True
-
-# tardis = Tardis('', name='tardis', calc_inst=tardis_calc)
 tardis = Tardis('', name='tardis')
 
 # re-map Tardis' axis names onto what an E6C expects
-#name_map = {'mu': 'theta', 'omega': 'mu', 'chi': 'chi', 'phi': 'phi', 'gamma': 'delta', 'delta': 'gamma'}
-name_map = {'mu': 'theta', 'omega': 'mu', 'chi': 'chi', 'phi': 'phi', 'gamma': 'delta', 'delta': 'gamma'}
-
-
+name_map = {'mu': 'mu', 'omega': 'theta', 'chi': 'chi', 'phi': 'phi', 'gamma': 'gamma', 'delta': 'delta'}
 tardis.calc.physical_axis_names = name_map
 
-#tardis.calc.engine.mode = 'lifting_detector_mu'  #THis is for E6C, it exists for petra3_09..., but not loaded
-tardis.calc.engine.mode = 'lifting_detector_mu'  #THis is for E6C, it exists for petra3_09..., but not loaded
+tardis.calc.engine.mode = 'lifting detector omega'
 
 # from this point, we can configure the Tardis instance
 from hkl.util import Lattice
 
-## lengths are in Angstrom, angles are in degrees
-##lattice = Lattice(a=9.069, b=9.069, c=10.390, alpha=90.0, beta=90.0, gamma=120.0)
-#
-## add the sample to the calculation engine
-##tardis.calc.new_sample('esrf_sample', lattice=lattice)
-#
-## we can alternatively set the energy on the Tardis instance
-##tardis.calc.wavelength = 1.61198 # angstroms
 
-# apply some constraints
+# Define suitable limits for real axes
 
 # Theta
 tardis.calc['theta'].limits = (-181, 181)
 tardis.calc['theta'].value = 0
 tardis.calc['theta'].fit = True
 
-# we don't have it. Fix to 0
-#tardis.calc['phi'].limits = (0, 0)
+# Phi, we don't have it. Fix to 0
 tardis.calc['phi'].limits = (0, 0)
 tardis.calc['phi'].value = 0
 tardis.calc['phi'].fit = False
 
-# we don't have it. Fix to 0
-#tardis.calc['chi'].limits = (0, 0)
+# Chi, we don't have it. Fix to 0
 tardis.calc['chi'].limits = (0, 0)
 tardis.calc['chi'].value = 0
 tardis.calc['chi'].fit = False
 
-# we don't have it!! Fix to 0
-#tardis.calc['mu'].limits = (0, 0)
+# Mu, we don't want it to move except for surface scattering!
 tardis.calc['mu'].limits = (0, 0)
-tardis.calc['mu'].value = 0#tardis.omega.position.real
-tardis.calc['mu'].fit = False
+tardis.calc['mu'].value = 0
+tardis.calc['mu'].fit = True
 
-# Attention naming convention inverted at the detector stages!
-# delta
+# Delta
 tardis.calc['delta'].limits = (-5, 180)
 tardis.calc['delta'].value = 0
 tardis.calc['delta'].fit = True
 
-# gamma
+# Gamma
 tardis.calc['gamma'].limits = (-5, 180)
 tardis.calc['gamma'].value = 0
 tardis.calc['gamma'].fit = True
 
-## add two, known reflections and compute UB
+
+
+### Example for testing calculations in essentially vertical geometry and mu = 0.0
+
+## lengths are in Angstrom, angles are in degrees, energies in eV
+#
+## Lattice definition
+#lattice = Lattice(a=9.069, b=9.069, c=10.390, alpha=90.0, beta=90.0, gamma=120.0)
+#
+## add the sample to the calculation engine
+#tardis.calc.new_sample('test_sample', lattice=lattice)
+#
+## set the wavelenght
+#tardis.calc.wavelength = 1.61198 # angstroms
+## or the energy (pay attention to the conversion factor, necessary to keep lattice spacing in Angstrom!)
+#tardis.calc.energy = (pgm.energy.setpoint + offset)/10000
+
+## two, known reflections and UB computation
 #r1 = tardis.calc.sample.add_reflection(3, 3, 0,
-#                           position=tardis.calc.Position(delta=64.449, theta=25.285, chi=0.0, phi=0.0, omega=0.0, gamma=-0.871))
+#                           position=tardis.calc.Position(delta=64.449, theta=25.285, chi=0.0, phi=0.0, mu=0.0, gamma=-0.871))
 #
 #r2 = tardis.calc.sample.add_reflection(5, 2, 0,
-#                           position=tardis.calc.Position(delta=79.712, theta=46.816, chi=0.0, phi=0.0, omega=0.0, gamma=-1.374))
+#                           position=tardis.calc.Position(delta=79.712, theta=46.816, chi=0.0, phi=0.0, mu=0.0, gamma=-1.374))
 #
 #tardis.calc.sample.compute_UB(r1, r2)
 
-# test computed real positions against the table below
-# recall, lambda is 1.61198 A now
-# ex:
-# print(tardis.calc.forward((4,4,0)))
-# print(tardis.calc.forward((4,1,0)))
+## test computed real positions against the table below
+## recall, lambda is 1.61198 A now
 #
 # Experimentally found reflections @ Lambda = 1.61198 A
 # (4, 4, 0) = [90.628, 38.373, 0, 0, 0, -1.156]
@@ -161,6 +136,5 @@ tardis.calc['gamma'].fit = True
 ## Useful basic commands
 # tardis.position -> HKL related to the current physical position
 # tardis.real_position -> current physical position
-# tardis.calc.forward((1,0,1)) -> calculates physical motor positions
-# given an HKL
-# tardis.move(0,0,0) -> physical motion corresponding to a given HKL
+# tardis.forward(H,K,L) -> calculates physical motor positions given an HKL
+# tardis.move(H,K,L) -> physical motion corresponding to a given HKL
